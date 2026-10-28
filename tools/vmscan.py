@@ -43,6 +43,9 @@ def detect_layout(secs):
 
 def main():
     args = sys.argv[1:]
+    if '--help' in args or '-h' in args:
+        print(__doc__)
+        return 0
     verbose = '--verbose' in args
     mode = None
     tgt_sec_filter = None
