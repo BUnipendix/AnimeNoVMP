@@ -6,7 +6,7 @@ following classes (see `run_all.sh` / `novmp-run` summary TSV):
 | Class | Meaning | Status |
 |---|---|---|
 | `ok` | Routine lifted to VTIL and optimized | success |
-| `budget` | The lift or an optimizer pass did not terminate within the wall-clock budget | open: symbolic state grows without bound on a minority of giant routines; exit refinements are bounded and degrade to faithful symbolic exits, but the walk itself can still exceed the budget |
+| `budget` | The lift or an optimizer pass did not terminate within the wall-clock budget | narrow: the walk-side optional refinements (constant-pool fix, block-local optimizer, branch analysis, shape probes) and exit refinements are slice-bounded with latches and degrade faithfully; the residue is giant routines (100k+ lifted instructions) whose plain walk needs more than the budget — they convert with a larger `-t` |
 | `vmenter-shape` | Discovery noise: a scanned stub whose entry does not match a known vmenter shape | expected for stubs that are not true VM entries |
 | `vm-depth` | Nested VM re-entry exceeded the depth cap | open |
 | `invalid-vip` | The virtual instruction pointer left the mapped image | open |

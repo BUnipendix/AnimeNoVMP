@@ -81,12 +81,66 @@ namespace vmp
 			slice = 1;
 		return slice;
 	}
+
+	// Local patch: walk-side optional refinements (constant-pool fixing and the
+	// block-local optimizer invoked around every vjmp) embed the istack
+	// reference tracer, whose forward trace forks into unbounded backward path
+	// enumeration on adversarial shell graphs (observed: a certain anime game
+	// 7.1.0 — one vjmp's apply_all burned the entire routine budget inside
+	// rtrace_primitive while no sub-deadline was armed). Each of these passes is
+	// optional — skipping one only costs output quality, never semantics — so
+	// they run under the refinement slice and fall back to "keep the block as
+	// emitted" on divergence. A latch disables a pass for the rest of the walk
+	// once it diverges twice: routines that never diverge are byte-identical to
+	// the unbounded behaviour, only pathological walks change. Reset per routine.
+	//
+	struct walk_latch_t
+	{
+		int fcp_divergences = 0;
+		int opt_divergences = 0;
+		int branch_divergences = 0;
+		int exit_divergences = 0;
+		bool fcp_disabled = false;
+		bool opt_disabled = false;
+		bool branch_disabled = false;
+		bool exit_disabled = false;
+	};
+	static thread_local walk_latch_t walk_latch;
+
+	// Runs a walk-side optional refinement under the refinement slice; returns
+	// whether it ran to completion, false when skipped (latched) or diverged.
+	//
+	template <typename F>
+	static bool bounded_optional( int& div_count, bool& disabled, const char* what, vtil::vip_t vip, F&& fn )
+	{
+		if ( disabled )
+			return false;
+		try
+		{
+			vtil::budget::scoped_sub_deadline sd( refinement_slice_secs() );
+			fn();
+			return true;
+		}
+		catch ( std::runtime_error& e )
+		{
+			if ( !strstr( e.what(), "bounded refinement" ) ) throw;
+			if ( ++div_count >= 2 )
+				disabled = true;
+			log( "[!] %s diverged @vip %#llx — skipping (optional refinement)\n",
+				 what, ( unsigned long long ) vip );
+			// A pass unwound mid-rewrite may have invalidated block iterators
+			// the simplifier cache still references.
+			vtil::symbolic::purge_simplifier_state();
+			return false;
+		}
+	}
 	// Local patch: the deadline is per virtual routine, not per process — a
 	// one-shot batch handling many -vms entries (or any long-lived caller)
 	// would otherwise starve every routine after the first NOVMP_TIME_LIMIT
 	// seconds of process lifetime. Call at each routine boundary.
 	//
 	void reset_time_budget() { g_deadline_set = false; }
+	void reset_walk_latch() { walk_latch = {}; }
 }
 // ---- end local patch --------------------------------------------------------
 
@@ -331,11 +385,11 @@ namespace vmp
 					// Remove constant obfuscation.
 					//
 					if ( vstate->img->strip_constant_obfuscation )
-						fix_constant_pool();
+						bounded_optional( walk_latch.fcp_divergences, walk_latch.fcp_disabled, "constant-pool fix",
+										  vstate->vip, [ & ] { fix_constant_pool(); } );
 
 					// Pass the current block through optimization.
 					//
-					//block->owner->local_opt_count += vtil::optimizer::apply_all( block ); // OPTIMIZER
 					jmp_dest = block->back().operands[ 0 ];
 
 					// Determine current stack offset.
@@ -352,15 +406,32 @@ namespace vmp
 					const auto bounded_rtrace_p = [ & ] ( const vtil::symbolic::variable& lookup, bool* diverged = nullptr )
 						-> vtil::symbolic::expression::reference
 					{
+						// Local patch: exit-refinement latch. A routine whose exit
+						// refinements diverge repeatedly is pathological — each
+						// further divergence costs a full refinement slice only to
+						// end at the same sentinel (observed: 22 divergent exits
+						// burning ~220 s of a 300 s budget on a certain anime game
+						// 4.8.0). Once latched, later exits still get a 1 s short
+						// slice: resolvable exits (typically sub-second) keep
+						// resolving, divergent ones cost a second instead of the
+						// full slice.
+						//
+						const bool latched = walk_latch.exit_disabled;
 						try
 						{
-							vtil::budget::scoped_sub_deadline sd( refinement_slice_secs() );
+							vtil::budget::scoped_sub_deadline sd( latched ? 1 : refinement_slice_secs() );
 							return tracer.rtrace_p( lookup );
 						}
 						catch ( std::runtime_error& e )
 						{
 							if ( !strstr( e.what(), "bounded refinement" ) ) throw;
 							if ( diverged ) *diverged = true;
+							if ( ++walk_latch.exit_divergences >= 4 && !walk_latch.exit_disabled )
+							{
+								walk_latch.exit_disabled = true;
+								log( "[!] exit refinements diverging repeatedly @vip %#llx — degrading to short slices\n",
+									 ( unsigned long long ) vstate->vip );
+							}
 							log( "[!] vmexit rtrace diverged @vip %#llx — keeping symbolic vexit\n",
 								 ( unsigned long long ) vstate->vip );
 							// Sentinel: the image-base variable. Read-only registers are
@@ -508,21 +579,31 @@ namespace vmp
 						? vtil::symbolic::expression{ jmp_dest.imm().u64, jmp_dest.bit_count() }
 						: [ & ] ( bool* diverged )
 						  {
-							try
+							// Local patch: exit-refinement latch (see bounded_rtrace_p):
+							// once tripped, a 1 s short slice instead of the full one.
+							//
+							const bool latched = walk_latch.exit_disabled;
+						try
+						{
+							vtil::budget::scoped_sub_deadline sd( latched ? 1 : refinement_slice_secs() );
+							return ( tracer.rtrace_p( { std::prev( block->end() ), jmp_dest.reg() } ) -
+									 (vstate->img->has_relocs ? vtil::symbolic::variable{ {}, vtil::REG_IMGBASE }.to_expression() : vtil::symbolic::expression{ vstate->img->get_real_image_base() })).simplify( true );
+						}
+						catch ( std::runtime_error& e )
+						{
+							if ( !strstr( e.what(), "bounded refinement" ) ) throw;
+							*diverged = true;
+							if ( ++walk_latch.exit_divergences >= 4 && !walk_latch.exit_disabled )
 							{
-								vtil::budget::scoped_sub_deadline sd( refinement_slice_secs() );
-								return ( tracer.rtrace_p( { std::prev( block->end() ), jmp_dest.reg() } ) -
-										 (vstate->img->has_relocs ? vtil::symbolic::variable{ {}, vtil::REG_IMGBASE }.to_expression() : vtil::symbolic::expression{ vstate->img->get_real_image_base() })).simplify( true );
-							}
-							catch ( std::runtime_error& e )
-							{
-								if ( !strstr( e.what(), "bounded refinement" ) ) throw;
-								*diverged = true;
-								log( "[!] vmexit exit rtrace diverged @vip %#llx — keeping symbolic vexit\n",
+								walk_latch.exit_disabled = true;
+								log( "[!] exit refinements diverging repeatedly @vip %#llx — degrading to short slices\n",
 									 ( unsigned long long ) vstate->vip );
-								return ( vtil::symbolic::expression_reference{ vtil::symbolic::variable{ {}, vtil::REG_IMGBASE }.to_expression() } -
-										 (vstate->img->has_relocs ? vtil::symbolic::variable{ {}, vtil::REG_IMGBASE }.to_expression() : vtil::symbolic::expression{ vstate->img->get_real_image_base() })).simplify( true );
 							}
+							log( "[!] vmexit exit rtrace diverged @vip %#llx — keeping symbolic vexit\n",
+								 ( unsigned long long ) vstate->vip );
+							return ( vtil::symbolic::expression_reference{ vtil::symbolic::variable{ {}, vtil::REG_IMGBASE }.to_expression() } -
+									 (vstate->img->has_relocs ? vtil::symbolic::variable{ {}, vtil::REG_IMGBASE }.to_expression() : vtil::symbolic::expression{ vstate->img->get_real_image_base() })).simplify( true );
+						}
 						  }( &exit_diverged );
 					if ( exit_diverged )
 						break;
@@ -652,7 +733,8 @@ namespace vmp
 						// Remove constant obfuscation.
 						//
 						if ( vstate->img->strip_constant_obfuscation )
-							fix_constant_pool();
+							bounded_optional( walk_latch.fcp_divergences, walk_latch.fcp_disabled, "constant-pool fix",
+											  vstate->vip, [ & ] { fix_constant_pool(); } );
 
 						// Pass the current block through optimization.
 						//
@@ -686,18 +768,31 @@ namespace vmp
 						// Remove constant obfuscation.
 						//
 						if ( vstate->img->strip_constant_obfuscation )
-							fix_constant_pool();
+							bounded_optional( walk_latch.fcp_divergences, walk_latch.fcp_disabled, "constant-pool fix",
+											  vstate->vip, [ & ] { fix_constant_pool(); } );
 
 						// Pass the current block through optimization.
 						//
-						block->owner->local_opt_count += vtil::optimizer::apply_all( block ); // OPTIMIZER
+						bounded_optional( walk_latch.opt_divergences, walk_latch.opt_disabled, "block optimization",
+										  vstate->vip, [ & ] { block->owner->local_opt_count += vtil::optimizer::apply_all( block ); } );
 
 						// Allocate an array of resolved destinations.
 						//
 						vtil::/*cached_*/tracer tracer = {};
 						std::vector<vtil::vip_t> destination_list;
 						uint64_t image_base = vstate->img->has_relocs ? 0 : vstate->img->get_real_image_base();
-						auto branch_info = vtil::optimizer::aux::analyze_branch( block, &tracer, { .pack = true } );
+						// Local patch: analyze_branch forward-traces the whole block
+						// through the istack tracer and diverges exactly like the
+						// optimizer passes above on adversarial graphs. Bounded the
+						// same way — an empty destination set leaves the symbolic
+						// jump in place (the faithful runtime-dispatch model).
+						//
+						vtil::optimizer::aux::branch_info branch_info{};
+						bounded_optional( walk_latch.branch_divergences, walk_latch.branch_disabled, "branch analysis",
+										  vstate->vip, [ & ]
+						{
+							branch_info = vtil::optimizer::aux::analyze_branch( block, &tracer, { .pack = true } );
+						} );
 
 						// ---- local patch: VMProtect jump-table (switch) resolution ----
 						// Upstream NoVmp throws "Whoooops hit switch case..." whenever a VJMP target
@@ -1019,6 +1114,27 @@ namespace vmp
 						// eat the whole routine budget.
 						//
 						bool arm_diverged = false;
+						// Local patch: each shape probe below backward-traces the arm
+						// expression without a scope; bound every probe with the
+						// refinement slice so a diverging trace skips the probe
+						// instead of the routine.
+						//
+						const auto probe = [ & ] ( auto&& fn ) -> bool
+						{
+							try
+							{
+								vtil::budget::scoped_sub_deadline sd( refinement_slice_secs() );
+								return fn();
+							}
+							catch ( std::runtime_error& e )
+							{
+								if ( !strstr( e.what(), "bounded refinement" ) ) throw;
+								log( "[!] shape probe diverged @vip %#llx — skipping probe\n",
+									 ( unsigned long long ) vstate->vip );
+								vtil::symbolic::purge_simplifier_state();
+								return false;
+							}
+						};
 						for ( auto& branch : branch_info.destinations )
 						{
 							// If not constant:
@@ -1061,28 +1177,28 @@ namespace vmp
 								// Local patch: VMProtect relative jump table. If resolved, the
 								// destination list is filled and we leave the loop early.
 								//
-								if ( try_jump_table( tracer.rtrace_exp( *branch ) ) )
+								if ( probe( [ & ] { return try_jump_table( tracer.rtrace_exp( *branch ) ); } ) )
 								{
 									any_destination_resolved = true;
 									break;
 								}
 								// Local patch: flag-bit two-way branch (see above).
 								//
-								if ( try_flag_branch( tracer.rtrace_exp( *branch ) ) )
+								if ( probe( [ & ] { return try_flag_branch( tracer.rtrace_exp( *branch ) ); } ) )
 								{
 									any_destination_resolved = true;
 									break;
 								}
 								// Local patch: fixed-slot branch (see above).
 								//
-								if ( try_fixed_slot( tracer.rtrace_exp( *branch ) ) )
+								if ( probe( [ & ] { return try_fixed_slot( tracer.rtrace_exp( *branch ) ); } ) )
 								{
 									any_destination_resolved = true;
 									break;
 								}
 								// Local patch: stack-indirect dispatch (see above).
 								//
-								if ( try_stack_jmp( tracer.rtrace_exp( *branch ) ) )
+								if ( probe( [ & ] { return try_stack_jmp( tracer.rtrace_exp( *branch ) ); } ) )
 								{
 									any_destination_resolved = true;
 									break;
@@ -1116,7 +1232,15 @@ namespace vmp
 								for ( auto [branch, idx] : vtil::zip( branch_info.destinations, vtil::iindices ) )
 								{
 									log( "-- %d) %s\n", idx, branch );
-									log( ">> %s\n", tracer.rtrace_exp( *branch ) );
+									try
+									{
+										log( ">> %s\n", tracer.rtrace_exp( *branch ) );
+									}
+									catch ( std::runtime_error& e )
+									{
+										if ( !strstr( e.what(), "bounded refinement" ) ) throw;
+										log( ">> <rtrace diverged>\n" );
+									}
 								}
 								log( "CC: %s\n", branch_info.cc );
 								// Local patch: evidence capture — record the unfolded
@@ -1131,7 +1255,17 @@ namespace vmp
 									out << vtil::format::str( "[vip %#llx] cc=%s\n",
 															  ( uint64_t ) vstate->vip, branch_info.cc );
 									for ( auto& b : branch_info.destinations )
-										out << "  " << tracer.rtrace_exp( *b )->to_string() << "\n";
+									{
+										try
+										{
+											out << "  " << tracer.rtrace_exp( *b )->to_string() << "\n";
+										}
+										catch ( std::runtime_error& e )
+										{
+											if ( !strstr( e.what(), "bounded refinement" ) ) throw;
+											out << "  <rtrace diverged>\n";
+										}
+									}
 									out << "\n";
 								}
 								catch ( ... ) {}

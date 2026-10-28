@@ -386,6 +386,7 @@ int main( int argc, const char** argv )
 		log<CON_DEF>( "Lifting virtual-machine at %p...\n", vr->jmp_rva );
 		// Local patch: the wall-clock budget applies to this routine only.
 		vmp::reset_time_budget();
+		vmp::reset_walk_latch();
 		vmp::vm_state state = { desc, vr->jmp_rva };
 		vtil::routine* rtn = lift_il( &state );
 		dprintf( "[dbg] lift_il returned\n" );

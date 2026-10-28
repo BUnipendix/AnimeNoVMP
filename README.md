@@ -80,6 +80,13 @@ virtualized routines.
 - **Per-VM wall-clock budget** (`NOVMP_TIME_LIMIT`, default 120 s, `0`
   disables). Real-world VMs occasionally spin forever; the budget makes them
   fail fast so batch runs keep moving.
+- **Slice-bounded refinements.** Every symbolic refinement the lifter makes
+  (exit destinations, branch analysis, shape probes, the block-local
+  optimizer and the constant-pool fix) runs under a wall-clock slice
+  (`NOVMP_RTRACE_BUDGET`, default 10 s, `0` disables) and degrades to a
+  faithful symbolic fallback when the slice expires; optional refinements
+  latch off for the rest of the routine after diverging repeatedly. A
+  divergent refinement costs a slice, never the whole budget.
 - **Optional verbose tracing** behind `NOVMP_VERBOSE=1`.
 - **Modern toolchain support.** Builds out of the box with current GCC,
   CMake and Ninja; VTIL-Core and linux-pe are vendored (pinned, with small

@@ -29,6 +29,11 @@ namespace vmp
 	//
 	void reset_time_budget();
 
+	// Local patch: clear the walk-side optional-refinement latches for the
+	// next routine.
+	//
+	void reset_walk_latch();
+
 	vtil::basic_block* lift_il( vtil::basic_block* block, vm_state* vstate );
 	static vtil::routine* lift_il( vm_state* vstate )
 	{
