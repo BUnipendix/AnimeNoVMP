@@ -26,4 +26,8 @@ else()
 endif()
 add_subdirectory(NoVmp)
 add_subdirectory(vtildump)
-add_subdirectory(supervisor)
+# The batch supervisor drives per-entry worker processes through a POSIX
+# shell workflow (dirent.h iteration, signal handling) — Unix only.
+if(UNIX)
+	add_subdirectory(supervisor)
+endif()
