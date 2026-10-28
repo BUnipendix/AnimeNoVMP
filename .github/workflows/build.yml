@@ -34,8 +34,7 @@ jobs:
         with:
           submodules: recursive
       - name: Configure
-        run: >
-          cmake -B build -DCMAKE_BUILD_TYPE=Release
-          -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+        shell: bash
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_POLICY_VERSION_MINIMUM=3.5
       - name: Build
         run: cmake --build build --config Release -j2
