@@ -135,6 +135,11 @@ DEPS=/tmp/deps tools/build.sh
 # through a proxy: PROXY=socks5h://127.0.0.1:1080 tools/build.sh
 ```
 
+This fork is developed and verified on Linux; the batch tooling is a POSIX
+shell workflow and the pinned linux-pe uses GCC-style attributes that MSVC
+does not accept. CI builds the engine end to end on Ubuntu (including the
+CMake 4.x compat patch for the fetched capstone).
+
 For x86-64 code generation build VTIL-Utils separately (`vtil compile`), see
 `tools/compile_all.sh`.
 

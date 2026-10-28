@@ -26,15 +26,3 @@ jobs:
           test -x build/supervisor/novmp-run
           python3 tools/vmscan.py --help > /dev/null
           python3 tools/summarize.py --help > /dev/null
-
-  windows:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: recursive
-      - name: Configure
-        shell: bash
-        run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_POLICY_VERSION_MINIMUM=3.5
-      - name: Build
-        run: cmake --build build --config Release -j2
