@@ -1,0 +1,8 @@
+[submodule "VTIL-Core"]
+	path = VTIL-Core
+	url = https://github.com/BUnipendix/VTIL-Core.git
+	branch = animenovmp
+[submodule "linux-pe"]
+	path = linux-pe
+	url = https://github.com/BUnipendix/linux-pe.git
+	branch = animenovmp

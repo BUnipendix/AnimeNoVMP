@@ -1,0 +1,10 @@
+--- keystone/llvm/include/llvm/ADT/STLExtras.h	2020-09-01 22:49:55.000000000 +0800
++++ deps/keystone/llvm/include/llvm/ADT/STLExtras.h	2026-09-28 21:51:34.212896542 +0800
+@@ -21,6 +21,7 @@
+ #include <algorithm> // for std::all_of
+ #include <cassert>
+ #include <cstddef> // for std::size_t
++#include <cstdint> // for intptr_t (modern GCC needs it explicitly)
+ #include <cstdlib> // for qsort
+ #include <functional>
+ #include <iterator>

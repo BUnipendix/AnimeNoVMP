@@ -1,0 +1,10 @@
+--- vtil/VTIL-Common/util/task.hpp	2021-05-02 02:29:30.000000000 +0800
++++ b/VTIL-Core/VTIL-Common/util/task.hpp	2026-09-28 21:56:44.985008960 +0800
+@@ -3,6 +3,7 @@
+ #include <future>
+ #include <optional>
+ #include <memory>
++#include <utility> // std::exchange
+ #include "type_helpers.hpp"
+ 
+ // [Configuration]

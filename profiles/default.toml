@@ -1,0 +1,17 @@
+# Classic VMProtect 3.x — the layout this engine was built against.
+# This mirrors the built-in defaults; passing it explicitly changes nothing.
+[profile]
+schema = 1
+name = "vmp3-classic"
+
+[discovery]
+sections = [".vmp"]
+
+[vmenter]
+shape = "push-movabs"
+
+[jump_table]
+entry_size = 4        # dword entries
+signed = true         # target = addend + (int32)entry
+min_targets = 3       # consecutive executable targets required
+max_entries = 4096    # table length cap

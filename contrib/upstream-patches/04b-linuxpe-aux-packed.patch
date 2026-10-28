@@ -1,0 +1,55 @@
+--- linuxpe/includes/coff/auxiliaries/aux_function.hpp	2021-02-28 20:49:13.000000000 +0800
++++ b/linux-pe/includes/coff/auxiliaries/aux_function.hpp	2026-09-28 22:08:15.653856570 +0800
+@@ -34,7 +34,7 @@
+ {
+     // Declare the data type.
+     //
+-    struct aux_function_t
++    struct __attribute__((packed)) aux_function_t
+     {
+         uint32_t                sym_begin_idx;                 // Symbol table index for the beginning of the function.
+         uint32_t                length;                        // Length of the code.
+--- linuxpe/includes/coff/auxiliaries/aux_function_delimiter.hpp	2021-02-28 20:49:13.000000000 +0800
++++ b/linux-pe/includes/coff/auxiliaries/aux_function_delimiter.hpp	2026-09-28 22:08:15.658571671 +0800
+@@ -34,7 +34,7 @@
+ {
+     // Declare the data type.
+     //
+-    struct aux_function_delimiter_t
++    struct __attribute__((packed)) aux_function_delimiter_t
+     {
+         uint32_t                _pad0;
+         uint16_t                line_number;                // Line number
+--- linuxpe/includes/coff/auxiliaries/aux_section.hpp	2021-02-28 20:49:13.000000000 +0800
++++ b/linux-pe/includes/coff/auxiliaries/aux_section.hpp	2026-09-28 22:08:15.666856620 +0800
+@@ -46,7 +46,7 @@
+ 
+     // Declare the data type.
+     //
+-    struct aux_section_t
++    struct __attribute__((packed)) aux_section_t
+     {
+         // Generic information.
+         //
+--- linuxpe/includes/coff/auxiliaries/aux_weak_external.hpp	2021-02-28 20:49:13.000000000 +0800
++++ b/linux-pe/includes/coff/auxiliaries/aux_weak_external.hpp	2026-09-28 22:08:15.689138373 +0800
+@@ -42,7 +42,7 @@
+ 
+     // Declare the data type.
+     //
+-    struct aux_weak_external_t
++    struct __attribute__((packed)) aux_weak_external_t
+     {
+         uint32_t                sym_alias_idx;              // Index of sym2 that should be linked if sym1 does not exist.
+         weak_external_type      type;                       // Type of the weak external.
+--- linuxpe/includes/coff/auxiliaries/aux_file_name.hpp	2021-02-28 20:49:13.000000000 +0800
++++ b/linux-pe/includes/coff/auxiliaries/aux_file_name.hpp	2026-09-28 22:08:15.693510889 +0800
+@@ -35,7 +35,7 @@
+ {
+     // Declare the data type.
+     //
+-    struct aux_file_name_t
++    struct __attribute__((packed)) aux_file_name_t
+     {
+         // Name of the file, zero terminated, multiple entries will be used if longer than 18 chars.
+         //

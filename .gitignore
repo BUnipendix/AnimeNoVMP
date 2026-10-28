@@ -1,0 +1,7 @@
+build/
+build-dbg/
+*.vtil
+*.bin
+failures/
+build-dbg/
+INTERNAL-NOTES.md

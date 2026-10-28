@@ -1,0 +1,21 @@
+# Classic VMProtect 3.x with the old dual-shell layout (two packer sections,
+# .upx0 + .upx1, small launcher image). Observed on older Anime game builds
+# before the engine merge. Same classic vmenter shape as default.toml; only
+# discovery differs — these images do not reference their stubs with direct
+# cross-section E9/E8 branches, so the stub shape is scanned directly.
+[profile]
+schema = 1
+name = "vmp3-classic-dual-shell"
+
+[discovery]
+scan = "stub-target"
+sections = [".upx0", ".upx1"]
+
+[vmenter]
+shape = "push-movabs"
+
+[jump_table]
+entry_size = 4
+signed = true
+min_targets = 3
+max_entries = 4096

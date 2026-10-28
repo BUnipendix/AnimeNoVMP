@@ -1,0 +1,5 @@
+set(THREADS_PREFER_PTHREAD_FLAG ON)
+find_package(Threads REQUIRED)
+file(GLOB SOURCES CONFIGURE_DEPENDS *.cpp)
+add_executable(vtildump ${SOURCES})
+target_link_libraries(vtildump PRIVATE VTIL Threads::Threads)
