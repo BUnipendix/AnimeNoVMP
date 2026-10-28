@@ -6,11 +6,11 @@
   <h1 align="center">AnimeNoVMP</h1>
   
   <p align="center">
-    <a href="https://ci.appveyor.com/project/can1357/NoVmp">
-      <img src="https://img.shields.io/appveyor/build/can1357/NoVmp?logo=appveyor&style=flat-square" alt="appveyor-ci"/>
+    <a href="https://github.com/BUnipendix/AnimeNoVMP/actions/workflows/build.yml">
+      <img src="https://img.shields.io/github/actions/workflow/status/BUnipendix/AnimeNoVMP/build.yml?style=flat-square" alt="build"/>
     </a>
-    <a href="https://github.com/can1357/NoVmp/blob/master/LICENSE.md">
-      <img src="https://img.shields.io/github/license/can1357/NoVmp.svg?style=flat-square" alt="license"/>
+    <a href="https://github.com/BUnipendix/AnimeNoVMP/blob/main/LICENSE">
+      <img src="https://img.shields.io/github/license/BUnipendix/AnimeNoVMP.svg?style=flat-square" alt="license"/>
     </a>
   </p>
   
@@ -79,7 +79,11 @@ virtualized routines.
   bounded.
 - **Per-VM wall-clock budget** (`NOVMP_TIME_LIMIT`, default 120 s, `0`
   disables). Real-world VMs occasionally spin forever; the budget makes them
-  fail fast so batch runs keep moving.
+  fail fast so batch runs keep moving. The default covers essentially
+  everything; on our seven-version benchmark the only entries that need more
+  are giant routines whose lifted output exceeds 80k instructions — rerunning
+  those with `-t 300` converts them (100% → 98.4% family coverage at 120 s,
+  98.8% at 300 s).
 - **Slice-bounded refinements.** Every symbolic refinement the lifter makes
   (exit destinations, branch analysis, shape probes, the block-local
   optimizer and the constant-pool fix) runs under a wall-clock slice
@@ -104,6 +108,10 @@ virtualized routines.
   - `compile_all.sh` / `dump_all.sh` — drive
     [VTIL-Utils](https://github.com/vtil-project/VTIL-Utils) to emit real
     x86-64 machine code or readable dumps for every lifted routine.
+  - `summarize.py` — render class histograms for batch output dirs and audit
+    diffs against baseline runs: conversions, regressions, and instruction
+    count changes split into premature-level (lift changed, semantic face)
+    versus optimizer-only (noise face) deltas.
 
 ### Dependencies
 

@@ -6,8 +6,8 @@ following classes (see `run_all.sh` / `novmp-run` summary TSV):
 | Class | Meaning | Status |
 |---|---|---|
 | `ok` | Routine lifted to VTIL and optimized | success |
-| `budget` | The lift or an optimizer pass did not terminate within the wall-clock budget | narrow: the walk-side optional refinements (constant-pool fix, block-local optimizer, branch analysis, shape probes) and exit refinements are slice-bounded with latches and degrade faithfully; the residue is giant routines (100k+ lifted instructions) whose plain walk needs more than the budget — they convert with a larger `-t` |
-| `vmenter-shape` | Discovery noise: a scanned stub whose entry does not match a known vmenter shape | expected for stubs that are not true VM entries |
+| `budget` | The lift or an optimizer pass did not terminate within the wall-clock budget | narrow: every walk-side symbolic refinement is slice-bounded with latches and degrades faithfully; the residue is a handful of giant routines (100k+ lifted instructions) whose plain walk needs more than the budget — most convert with a larger `-t` |
+| `vmenter-shape` | Discovery noise: a scanned stub whose entry does not match a known vmenter shape | expected for stubs that are not true VM entries; these fail in seconds, they do not hold the batch |
 | `vm-depth` | Nested VM re-entry exceeded the depth cap | open |
 | `invalid-vip` | The virtual instruction pointer left the mapped image | open |
 | `deobfuscate` | The unroll started at a native (non-entry) stub and died in encrypted data | expected: no recovery value |
