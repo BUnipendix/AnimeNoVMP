@@ -2,9 +2,8 @@
 # Build AnimeNoVMP + vtildump + novmp-run. VTIL-Core and linux-pe are git
 # submodules (patched forks; see .gitmodules) — this script checks them out.
 # Requires: cmake>=3.16, ninja, g++ (C++20). Network: only for the one-time
-# capstone/keystone clone into the deps dir (see contrib/upstream-patches/
-# 02-keystone-cstdint.patch and 06-deps-cmake4.patch for the two local fixes
-# the dep copies carry).
+# capstone/keystone clone (compat fixes are carried inside the VTIL fork's
+# Dependencies/ tree and applied automatically at configure time).
 #
 # NOVMP_DEPS  override the dependency source dir (default ~/Documents/git-repo/deps,
 #             holding capstone/ and keystone/ clones at the pinned commits)

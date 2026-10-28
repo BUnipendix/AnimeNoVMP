@@ -119,8 +119,11 @@ VTIL-Core and linux-pe are git **submodules** pointing at patched forks
 (`BUnipendix/VTIL-Core` and `BUnipendix/linux-pe`, branch `animenovmp`);
 clone with `--recurse-submodules` or let `tools/build.sh` fetch them. The
 forks carry the hardening patches (crash guards, depth caps, sub-budget
-plumbing) and `contrib/upstream-patches/` holds the same changes as
-standalone patches for upstreaming. To use your own trees instead:
+plumbing) on top of the pinned upstream revisions; every change is an
+ordinary commit on the fork branch, so a set of patches against the upstream
+base can be regenerated at any time with
+`git -C VTIL-Core format-patch <upstream-rev>..animenovmp` (same for
+linux-pe). To use your own trees instead:
 
 ```bash
 cmake -B build -DNOVMP_VTIL_SOURCE_DIR=/path/to/your/VTIL-Core -DNOVMP_LPE_SOURCE_DIR=/path/to/your/linux-pe
